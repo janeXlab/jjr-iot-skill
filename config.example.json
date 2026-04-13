@@ -1,0 +1,17 @@
+{
+    "_comment": "捷佳润 IoT 平台配置示例 - 复制为 config.json 并填入真实配置",
+    
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "product_key": "YOUR_PRODUCT_KEY",
+    "device_name": "YOUR_DEVICE_NAME",
+    
+    "_api_base_comment": "API 基础地址",
+    "api_base": "https://gateway.jjr.vip",
+    
+    "_token_cache_comment": "Token 缓存文件路径",
+    "token_cache_file": "/tmp/jjr_iot_token.json",
+    
+    "_timeout_comment": "请求超时时间（秒）",
+    "timeout": 30
+}

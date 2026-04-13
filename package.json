@@ -1,0 +1,19 @@
+{
+  "name": "jjr-iot-skill",
+  "version": "1.0.1",
+  "description": "捷佳润 IoT 平台技能 - 设备查询、属性数据、图片获取、定时任务",
+  "displayName": "JJR IoT Skill",
+  "author": "janeXlab",
+  "license": "MIT",
+  "keywords": ["iot", "jjr", "agriculture", "sensors", "chinese"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/janeXlab/jjr-iot-skill"
+  },
+  "openclaw": {
+    "minVersion": "2026.3.24",
+    "requires": {
+      "bins": ["curl", "jq", "python3"]
+    }
+  }
+}

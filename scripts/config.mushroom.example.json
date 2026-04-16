@@ -1,0 +1,11 @@
+{
+  "title": "🍅 温室番茄环境监测报告",
+  "deviceName": "GREENHOUSE-A01",
+  "cropType": "番茄（结果期）",
+  "standards": {
+    "temp": {"min": 20, "max": 28, "unit": "°C"},
+    "humidity": {"min": 60, "max": 80, "unit": "%"},
+    "co2": {"min": 400, "max": 1000, "unit": "ppm"},
+    "light": {"min": 20000, "max": 50000, "unit": "lux"}
+  }
+}

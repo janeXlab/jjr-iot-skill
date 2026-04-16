@@ -9,13 +9,13 @@
 ./scripts/list_devices.sh --page 1 --size 10
 
 # 查询特定产品的设备
-./scripts/list_devices.sh --productKey a1Zk6COoaIW --size 50
+./scripts/list_devices.sh --productKey YOUR_PRODUCT_KEY --size 50
 
 # 输出示例：
 # ✅ 查询成功
 #
-# | 植物生长记录仪  | PR20250416100005 | a1Zk6COoaIW | 🟢在线  | 2026-01-20 14:21:57 |
-# | 无线控阀终端    | KF1472105701     | C5F4XNOBWP  | 🔴离线  | 2024-09-27 14:35:26 |
+# | 植物生长记录仪  | YOUR_DEVICE_NAME | YOUR_PRODUCT_KEY | 🟢在线  | 2026-01-20 14:21:57 |
+# | 无线控阀终端    | YOUR_DEVICE_NAME_B | YOUR_PRODUCT_KEY_B | 🔴离线  | （示例日期） |
 #
 # 📊 汇总信息:
 #    总设备数：164 | 当前页：1/17 | 每页：10 台
@@ -28,8 +28,8 @@
 ```bash
 # 查询最近 7 天的温度数据
 ./scripts/get_property_data.sh \
-  --productKey a1Zk6COoaIW \
-  --deviceName PR20250416100005 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --identifier envTemp \
   --startTime "2026-04-06 00:00:00" \
   --endTime "2026-04-13 00:00:00"
@@ -38,8 +38,8 @@
 # ✅ 查询成功
 #
 # 📋 查询条件:
-#    产品 Key: a1Zk6COoaIW
-#    设备名称：PR20250416100005
+#    产品 Key: YOUR_PRODUCT_KEY
+#    设备名称：YOUR_DEVICE_NAME
 #    属性标识：envTemp
 #    时间范围：2026-04-06 00:00:00 ~ 2026-04-13 00:00:00
 #
@@ -61,8 +61,8 @@
 ```bash
 # 获取最新一张图片
 ./scripts/get_image.sh \
-  --productKey a1Zk6COoaIW \
-  --deviceName PR20250416100005 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --output /tmp/latest_image.jpg
 
 # 输出示例：
@@ -91,8 +91,8 @@ crontab -e
 
 # 添加任务
 0 * * * * /home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/get_property_data.sh \
-  --productKey a1Zk6COoaIW \
-  --deviceName PR20250416100005 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --identifier envTemp \
   --startTime "$(date -d '1 hour ago' '+%Y-%m-%d %H:%M:%S')" \
   --endTime "$(date '+%Y-%m-%d %H:%M:%S')" \
@@ -109,8 +109,8 @@ IMAGE_PATH="/mnt/images/daily_$(date +\%Y\%m\%d).jpg"
 
 # 获取图片
 /home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/get_image.sh \
-  --productKey a1Zk6COoaIW \
-  --deviceName PR20250416100005 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --output "$IMAGE_PATH"
 
 # 发送到钉钉
@@ -140,15 +140,15 @@ chmod +x /home/cloud/scripts/send_daily_image.sh
 # 批量查询多个设备的温度
 
 DEVICES=(
-  "PR20250416100005"
-  "PR20250416100006"
-  "PR20250416100007"
+  "YOUR_DEVICE_NAME"
+  "YOUR_DEVICE_NAME_2"
+  "YOUR_DEVICE_NAME_3"
 )
 
 for DEVICE in "${DEVICES[@]}"; do
   echo "=== 设备：$DEVICE ==="
   /home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/get_property_data.sh \
-    --productKey a1Zk6COoaIW \
+    --productKey YOUR_PRODUCT_KEY \
     --deviceName "$DEVICE" \
     --identifier envTemp \
     --startTime "$(date -d '1 hour ago' '+%Y-%m-%d %H:%M:%S')" \
@@ -170,8 +170,8 @@ THRESHOLD=40.0
 WEBHOOK="YOUR_DINGTALK_WEBHOOK"
 
 RESPONSE=$(/home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/get_property_data.sh \
-  --productKey a1Zk6COoaIW \
-  --deviceName PR20250416100005 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --identifier envTemp \
   --startTime "$(date -d '10 minutes ago' '+%Y-%m-%d %H:%M:%S')" \
   --endTime "$(date '+%Y-%m-%d %H:%M:%S')" \
@@ -185,7 +185,7 @@ if (( $(echo "$TEMP > $THRESHOLD" | bc -l) )); then
     -d "{
       \"msgtype\": \"text\",
       \"text\": {
-        \"content\": \"⚠️ 温度告警！\\n设备：PR20250416100005\\n当前温度：${TEMP}°C\\n阈值：${THRESHOLD}°C\\n时间：$(date)\"
+        \"content\": \"⚠️ 温度告警！\\n设备：YOUR_DEVICE_NAME\\n当前温度：${TEMP}°C\\n阈值：${THRESHOLD}°C\\n时间：$(date)\"
       }
     }"
 fi
@@ -199,13 +199,13 @@ fi
 #!/bin/bash
 # 生成每日温度报告
 
-DEVICE="PR20250416100005"
+DEVICE="YOUR_DEVICE_NAME"
 YESTERDAY=$(date -d 'yesterday' '+%Y-%m-%d')
 START="${YESTERDAY} 00:00:00"
 END="${YESTERDAY} 23:59:59"
 
 RESPONSE=$(/home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/get_property_data.sh \
-  --productKey a1Zk6COoaIW \
+  --productKey YOUR_PRODUCT_KEY \
   --deviceName "$DEVICE" \
   --identifier envTemp \
   --startTime "$START" \
@@ -232,4 +232,4 @@ EOF
 
 ---
 
-**更多示例请访问:** https://clawhub.ai/skills/jjr-iot/examples
+**更多示例请访问:** https://skillhub.cloud.tencent.com/skills/jjr-iot-skill

@@ -15,12 +15,14 @@
 
 ## 📦 安装
 
-### 方式一：OpenClaw 直接安装（推荐）
+### 方式一：语音安装（推荐）
 
-直接对 OpenClaw 输入指令：
-`安装 jjr iot skill` 或 `install jjr iot skill`
+对捷小码说：
+```
+安装 jjr iot skill
+```
 
-然后按提示将 `client_id` 和 `client_secret` 直接粘贴给 OpenClaw 即可完成自动配置。
+然后提供设备上的 `client_id` 和 `client_secret`。
 
 ### 方式二：手动安装
 
@@ -55,7 +57,7 @@ cd ~/.openclaw/workspace/skills/jjr-iot-skill/scripts/
 ./list_products.sh --page 1 --size 10
 
 # 查询特定产品
-./list_products.sh --productKey a1Zk6COoaIW
+./list_products.sh --productKey YOUR_PRODUCT_KEY
 ```
 
 ### 3️⃣ 查询设备列表
@@ -68,26 +70,28 @@ cd ~/.openclaw/workspace/skills/jjr-iot-skill/scripts/
 
 ```bash
 ./get_property_data.sh \
-  --productKey a1Zk6COoaIW \
-  --deviceName PR20250416100005 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --identifier envTemp \
   --startTime "2026-04-01 00:00:00" \
   --endTime "2026-04-13 00:00:00"
 ```
+
+**提示：** 将 `YOUR_PRODUCT_KEY` 和 `YOUR_DEVICE_NAME` 替换为你的实际设备信息。
 
 ### 5️⃣ 编辑设备配置
 
 ```bash
 # 编辑设备属性（如修改上报间隔）
 ./device_config.sh \
-  --productKey 80NKGSWOKC \
-  --deviceName N2APXOI160 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --edit int 99
 
 # 下发配置到设备（立即生效）
 ./config_push.sh \
-  --productKey 80NKGSWOKC \
-  --deviceName N2APXOI160 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --configs "int=99"
 ```
 
@@ -95,8 +99,8 @@ cd ~/.openclaw/workspace/skills/jjr-iot-skill/scripts/
 
 ```bash
 ./get_image.sh \
-  --productKey a1Zk6COoaIW \
-  --deviceName PR20250416100005 \
+  --productKey YOUR_PRODUCT_KEY \
+  --deviceName YOUR_DEVICE_NAME \
   --output /tmp/latest_image.jpg
 ```
 
@@ -110,8 +114,8 @@ cd ~/.openclaw/workspace/skills/jjr-iot-skill/scripts/
 # 编辑 crontab
 crontab -e
 
-# 添加任务（每小时执行）
-0 * * * * /home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/get_property_data.sh \
+# 添加任务（每小时执行，使用绝对路径）
+0 * * * * /path/to/jjr-iot-skill/scripts/get_property_data.sh \
   --productKey YOUR_PRODUCT_KEY \
   --deviceName YOUR_DEVICE_NAME \
   --identifier envTemp \
@@ -119,19 +123,21 @@ crontab -e
   --endTime "$(date '+%Y-%m-%d %H:%M:%S')" >> /var/log/jjr_temp.log 2>&1
 ```
 
+**提示：** 将 `/path/to/jjr-iot-skill/` 替换为你的实际安装路径。
+
 ### 每天 9 点获取设备图片
 
 ```bash
-0 9 * * * /home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/get_image.sh \
+0 9 * * * /path/to/jjr-iot-skill/scripts/get_image.sh \
   --productKey YOUR_PRODUCT_KEY \
   --deviceName YOUR_DEVICE_NAME \
-  --output /mnt/images/daily_$(date +\%Y\%m\%d).jpg
+  --output /tmp/daily_$(date +\%Y\%m\%d).jpg
 ```
 
 ### 每 30 分钟推送数据到钉钉
 
 ```bash
-*/30 * * * * /home/cloud/.openclaw/workspace/skills/jjr-iot-skill/scripts/notify_dingtalk.sh \
+*/30 * * * * /path/to/jjr-iot-skill/scripts/notify_dingtalk.sh \
   --webhook YOUR_DINGTALK_WEBHOOK
 ```
 
@@ -152,8 +158,8 @@ crontab -e
 | 接口 | 路径 | 方法 |
 |------|------|------|
 | 获取 Token | `/iot/oauth2/token` | POST |
-| 设备列表 | `/ultimate/open/iot/device/list` | GET |
-| 产品列表 | `/ultimate/open/iot/product/list` | GET |
+| 设备列表 | `/iot/open/iot/device/list` | GET |
+| 产品列表 | `/iot/open/iot/product/list` | GET |
 | 属性数据 | `/iot/open/iot/device/propertyData` | GET |
 
 ---
@@ -188,10 +194,9 @@ A: 图片 URL 可能已过期，请重新获取最新的 imgUrl。
 
 ---
 
-## 📞 支持
+## 📞 支持与文档
 
-- **文档:** https://clawhub.ai/skills/jjr-iot
-- **Issue:** https://github.com/jjr-agriculture/jjr-iot-skill/issues
+当前版本技能页（安装说明、更新与反馈入口）：[腾讯云 SkillHub - jjr-iot-skill](https://skillhub.cloud.tencent.com/skills/jjr-iot-skill)
 
 ---
 
@@ -201,7 +206,7 @@ MIT License
 
 ---
 
-**版本:** 1.0.1  
-**更新日期:** 2026-04-13  
+**版本:** 1.3.0  
+**创建日期:** 2026-04-13  
 **作者:** 捷佳润创新中心  
 **支持:** service@jjr.com.cn

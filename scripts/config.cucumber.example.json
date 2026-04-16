@@ -1,0 +1,11 @@
+{
+  "title": "🥒 温室黄瓜环境监测报告",
+  "deviceName": "GREENHOUSE-B02",
+  "cropType": "黄瓜（生长期）",
+  "standards": {
+    "temp": {"min": 18, "max": 30, "unit": "°C"},
+    "humidity": {"min": 70, "max": 90, "unit": "%"},
+    "co2": {"min": 400, "max": 1200, "unit": "ppm"},
+    "light": {"min": 15000, "max": 40000, "unit": "lux"}
+  }
+}

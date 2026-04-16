@@ -58,10 +58,51 @@ read -p "API 基础地址 (默认：https://gateway.jjr.vip): " api_base
 api_base="${api_base:-https://gateway.jjr.vip}"
 
 echo ""
+echo "📦 配置默认设备信息（可选，用于 analyze_growth.py 等脚本）"
+echo "如果不配置，使用时需要通过命令行参数指定 --productKey 和 --deviceName"
+read -p "是否要配置默认设备？(y/N): " config_device
+
+product_key=""
+device_name=""
+
+if [ "$config_device" = "y" ] || [ "$config_device" = "Y" ]; then
+    read -p "请输入 productKey: " product_key
+    read -p "请输入 deviceName: " device_name
+fi
+
+echo ""
 echo "🔧 正在生成配置文件..."
 
 # 创建配置文件
-cat > "$CONFIG_FILE" << EOF
+if [ -n "$product_key" ] && [ -n "$device_name" ]; then
+    cat > "$CONFIG_FILE" << EOF
+{
+    "_comment": "捷佳润 IoT 平台配置 - 由 setup_credentials.sh 生成",
+    
+    "client_id": "${client_id}",
+    "client_secret": "${client_secret}",
+    
+    "api_base": "${api_base}",
+    
+    "token_cache_file": "/tmp/jjr_iot_token.json",
+    "timeout": 30,
+    
+    "product_key": "${product_key}",
+    "device_name": "${device_name}",
+    
+    "plant_type": "default",
+    "optimal_conditions": {
+        "temp_min": 20,
+        "temp_max": 30,
+        "temp_optimal": 25,
+        "humid_min": 60,
+        "humid_max": 80,
+        "humid_optimal": 70
+    }
+}
+EOF
+else
+    cat > "$CONFIG_FILE" << EOF
 {
     "_comment": "捷佳润 IoT 平台配置 - 由 setup_credentials.sh 生成",
     
@@ -74,6 +115,7 @@ cat > "$CONFIG_FILE" << EOF
     "timeout": 30
 }
 EOF
+fi
 
 echo "✅ 配置文件已生成：$CONFIG_FILE"
 echo ""
@@ -100,21 +142,48 @@ if [ "$CODE" = "200" ]; then
     echo "✅ API 连接成功！"
     echo "   Token 类型：Bearer"
     echo "   有效期：$((EXPIRES_IN / 60)) 分钟"
-    echo ""
-    echo "🎉 配置完成！你现在可以使用 jjr-iot-skill 的所有功能了。"
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "快速开始："
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "1. 查询设备列表："
-    echo "   ./scripts/list_devices.sh"
-    echo ""
-    echo "2. 查询设备属性："
-    echo "   ./scripts/get_property_data.sh --productKey YOUR_KEY --deviceName YOUR_DEVICE --identifier envTemp"
-    echo ""
-    echo "3. 获取设备图片："
-    echo "   ./scripts/get_image.sh --productKey YOUR_KEY --deviceName YOUR_DEVICE --output /tmp/image.jpg"
+    if [ -n "$product_key" ] && [ -n "$device_name" ]; then
+        echo ""
+        echo "🎉 配置完成！你现在可以使用 jjr-iot-skill 的所有功能了。"
+        echo "   默认设备：${product_key}:${device_name}"
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "快速开始："
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "1. 查询设备列表："
+        echo "   ./scripts/list_devices.sh"
+        echo ""
+        echo "2. 查询设备属性（使用默认设备）："
+        echo "   ./scripts/get_property_data.sh --identifier envTemp"
+        echo ""
+        echo "3. 获取设备图片："
+        echo "   ./scripts/get_image.sh --output /tmp/image.jpg"
+        echo ""
+        echo "4. 生成生长分析报告："
+        echo "   python3 scripts/analyze_growth.py --days 7 --output growth_report.html"
+        echo ""
+    else
+        echo ""
+        echo "🎉 配置完成！你现在可以使用 jjr-iot-skill 的所有功能了。"
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "快速开始："
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "1. 查询设备列表："
+        echo "   ./scripts/list_devices.sh"
+        echo ""
+        echo "2. 查询设备属性（需要指定设备）："
+        echo "   ./scripts/get_property_data.sh --productKey YOUR_KEY --deviceName YOUR_DEVICE --identifier envTemp"
+        echo ""
+        echo "3. 获取设备图片："
+        echo "   ./scripts/get_image.sh --productKey YOUR_KEY --deviceName YOUR_DEVICE --output /tmp/image.jpg"
+        echo ""
+        echo "4. 生成生长分析报告："
+        echo "   python3 scripts/analyze_growth.py --productKey YOUR_KEY --deviceName YOUR_DEVICE --days 7"
+        echo ""
+    fi
     echo ""
 else
     echo "❌ API 连接失败！"

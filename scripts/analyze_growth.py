@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-捷佳润 IoT 平台 - 嘉宝果生长环境数据分析
+捷佳润 IoT 平台 - 生长环境数据分析
 生成可视化图表和生长洞察报告
+
+用法:
+    python3 analyze_growth.py --config ../config.json --days 7
+    python3 analyze_growth.py --productKey YOUR_KEY --deviceName YOUR_NAME --days 7
 """
 
 import json
 import subprocess
 import os
+import sys
+import argparse
 from datetime import datetime, timedelta
 from collections import defaultdict
+from pathlib import Path
 
 # 颜色配置
 COLORS = {
@@ -21,8 +28,8 @@ COLORS = {
     'bg': '#F8F9FA'
 }
 
-# 嘉宝果生长适宜条件（参考文献）
-JABOTICABA_OPTIMAL = {
+# 植物生长适宜条件（通用配置，可在 config.json 中覆盖）
+DEFAULT_OPTIMAL = {
     'temp_min': 20,      # 最低适宜温度 °C
     'temp_max': 30,      # 最高适宜温度 °C
     'temp_optimal': 25,  # 最适温度 °C
@@ -31,21 +38,30 @@ JABOTICABA_OPTIMAL = {
     'humid_optimal': 70, # 最适湿度 %
 }
 
-def get_config():
-    """从 config.json 读取配置"""
-    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
-    if os.path.exists(config_path):
-        with open(config_path, 'r', encoding='utf-8') as f:
+def load_config(config_path=None):
+    """加载配置文件"""
+    if config_path and os.path.exists(config_path):
+        with open(config_path, 'r') as f:
             return json.load(f)
-    return {}
+    
+    # 尝试默认路径
+    default_paths = [
+        'config.json',
+        os.path.join(os.path.dirname(__file__), 'config.json'),
+        os.path.expanduser('~/.jjr-iot/config.json')
+    ]
+    
+    for path in default_paths:
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                return json.load(f)
+    
+    return None
 
-def get_token():
+def get_token(config):
     """获取 API Token"""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    token_script = os.path.join(script_dir, 'get_token.sh')
-    result = subprocess.run([
-        'bash', token_script
-    ], capture_output=True, text=True)
+    script_path = os.path.join(os.path.dirname(__file__), 'get_token.sh')
+    result = subprocess.run(['bash', script_path], capture_output=True, text=True)
     return result.stdout.strip().split('\n')[-1]
 
 def fetch_property_data(identifier, start_time, end_time, token, product_key, device_name):
@@ -67,10 +83,13 @@ def fetch_property_data(identifier, start_time, end_time, token, product_key, de
     req = urllib.request.Request(url)
     req.add_header('Authorization', f'Bearer {token}')
     
-    with urllib.request.urlopen(url, timeout=30) as response:
-        data = json.loads(response.read().decode())
-    
-    return data.get('result', [])
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            data = json.loads(response.read().decode())
+        return data.get('result', [])
+    except Exception as e:
+        print(f"⚠️  获取数据失败：{e}")
+        return []
 
 def parse_data(raw_data):
     """解析原始数据"""
@@ -110,347 +129,336 @@ def daily_stats(data):
     result = {}
     for date, values in sorted(daily.items()):
         result[date] = {
+            'avg': sum(values) / len(values),
             'max': max(values),
             'min': min(values),
-            'avg': sum(values) / len(values),
             'count': len(values)
         }
     return result
 
-def comfort_analysis(data):
-    """舒适度分析（基于嘉宝果适宜条件）"""
-    total = len(data)
-    optimal = sum(1 for d in data if JABOTICABA_OPTIMAL['temp_min'] <= d['value'] <= JABOTICABA_OPTIMAL['temp_max'])
-    too_hot = sum(1 for d in data if d['value'] > JABOTICABA_OPTIMAL['temp_max'])
-    too_cold = sum(1 for d in data if d['value'] < JABOTICABA_OPTIMAL['temp_min'])
+def generate_html_report(temp_data, humid_data, optimal, device_info, days):
+    """生成 HTML 报告"""
+    from datetime import datetime
     
-    return {
-        'optimal_percent': optimal / total * 100 if total > 0 else 0,
-        'too_hot_percent': too_hot / total * 100 if total > 0 else 0,
-        'too_cold_percent': too_cold / total * 100 if total > 0 else 0,
-        'optimal_count': optimal,
-        'too_hot_count': too_hot,
-        'too_cold_count': too_cold,
-    }
-
-def generate_html_report(temp_data, humid_data, output_path):
-    """生成 HTML 可视化报告"""
-    
-    # 计算统计数据
-    temp_stats = calculate_stats(temp_data)
-    humid_stats = calculate_stats(humid_data) if humid_data else {}
-    temp_daily = daily_stats(temp_data)
-    comfort = comfort_analysis(temp_data)
-    
-    # 生成每日数据表格 HTML
-    daily_table_rows = ""
-    for date, stats in temp_daily.items():
-        # 判断温度是否适宜
-        if stats['avg'] < JABOTICABA_OPTIMAL['temp_min']:
-            status = "❄️ 偏冷"
-            status_class = "cold"
-        elif stats['avg'] > JABOTICABA_OPTIMAL['temp_max']:
-            status = "🔥 偏热"
-            status_class = "hot"
-        else:
-            status = "✅ 适宜"
-            status_class = "optimal"
-        
-        daily_table_rows += f"""
-        <tr class="{status_class}">
-            <td>{date}</td>
-            <td>{stats['min']:.1f}°C</td>
-            <td>{stats['avg']:.1f}°C</td>
-            <td>{stats['max']:.1f}°C</td>
-            <td>{stats['count']}</td>
-            <td>{status}</td>
-        </tr>
-        """
-    
-    # 生成洞察分析
-    insights = generate_insights(temp_data, temp_stats, comfort)
-    
-    html_content = f"""<!DOCTYPE html>
-<html lang="zh-CN">
+    html = f"""
+<!DOCTYPE html>
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>嘉宝果生长环境监测报告</title>
+    <title>生长环境分析报告 - {device_info['productKey']}:{device_info['deviceName']}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: {COLORS['bg']}; padding: 20px; }}
-        .container {{ max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }}
-        .header {{ background: linear-gradient(135deg, {COLORS['primary']}, {COLORS['secondary']}); color: white; padding: 30px; text-align: center; }}
-        .header h1 {{ font-size: 28px; margin-bottom: 10px; }}
-        .header p {{ opacity: 0.9; }}
-        .content {{ padding: 30px; }}
-        .section {{ margin-bottom: 30px; }}
-        .section-title {{ font-size: 20px; color: {COLORS['primary']}; margin-bottom: 15px; border-left: 4px solid {COLORS['primary']}; padding-left: 12px; }}
-        
-        /* 统计卡片 */
-        .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
-        .stat-card {{ background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 10px; padding: 20px; text-align: center; }}
-        .stat-value {{ font-size: 32px; font-weight: bold; color: {COLORS['primary']}; margin: 10px 0; }}
-        .stat-label {{ color: #666; font-size: 14px; }}
-        .stat-card.hot .stat-value {{ color: {COLORS['danger']}; }}
-        .stat-card.cold .stat-value {{ color: #3498db; }}
-        .stat-card.optimal .stat-value {{ color: {COLORS['success']}; }}
-        
-        /* 表格样式 */
-        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-        th, td {{ padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }}
-        th {{ background: {COLORS['primary']}; color: white; font-weight: 600; }}
-        tr:hover {{ background: #f5f5f5; }}
-        tr.optimal {{ background: rgba(106, 153, 78, 0.1); }}
-        tr.hot {{ background: rgba(199, 62, 29, 0.1); }}
-        tr.cold {{ background: rgba(52, 152, 219, 0.1); }}
-        
-        /* 洞察卡片 */
-        .insights {{ background: linear-gradient(135deg, #fff3cd, #ffe69c); border-radius: 10px; padding: 20px; border-left: 4px solid {COLORS['warning']}; }}
-        .insight-item {{ margin: 15px 0; padding: 15px; background: white; border-radius: 8px; }}
-        .insight-item h4 {{ color: {COLORS['warning']}; margin-bottom: 8px; }}
-        .insight-item p {{ color: #555; line-height: 1.6; }}
-        
-        /* 舒适度分析 */
-        .comfort-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 20px 0; }}
-        .comfort-card {{ text-align: center; padding: 20px; border-radius: 10px; }}
-        .comfort-card.optimal {{ background: rgba(106, 153, 78, 0.15); border: 2px solid {COLORS['success']}; }}
-        .comfort-card.hot {{ background: rgba(199, 62, 29, 0.15); border: 2px solid {COLORS['danger']}; }}
-        .comfort-card.cold {{ background: rgba(52, 152, 219, 0.15); border: 2px solid #3498db; }}
-        .comfort-percent {{ font-size: 28px; font-weight: bold; margin: 10px 0; }}
-        
-        /* 建议框 */
-        .recommendations {{ background: linear-gradient(135deg, #d4edda, #c3e6cb); border-radius: 10px; padding: 20px; border-left: 4px solid {COLORS['success']}; }}
-        .recommendations ul {{ margin-left: 20px; }}
-        .recommendations li {{ margin: 10px 0; color: #155724; line-height: 1.6; }}
-        
-        .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; border-top: 1px solid #eee; }}
+        body {{ font-family: Arial, sans-serif; margin: 20px; background: #F8F9FA; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        h1 {{ color: #2E86AB; text-align: center; }}
+        .info {{ background: #E3F2FD; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }}
+        .stat-card {{ background: #F8F9FA; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #2E86AB; }}
+        .stat-value {{ font-size: 24px; font-weight: bold; color: #2E86AB; }}
+        .stat-label {{ color: #666; margin-top: 5px; }}
+        .chart-container {{ position: relative; height: 400px; margin: 30px 0; }}
+        .optimal {{ background: #E8F5E9; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        .warning {{ color: #F18F01; }}
+        .danger {{ color: #C73E1D; }}
+        .success {{ color: #6A994E; }}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🌳 植物生长环境监测报告</h1>
-            <p>设备：{device_name} | 报告周期：{start_date[:10]} ~ {end_date[:10]}</p>
+        <h1>🌱 生长环境分析报告</h1>
+        
+        <div class="info">
+            <strong>设备信息：</strong> {device_info['productKey']} : {device_info['deviceName']}<br>
+            <strong>分析时段：</strong> 近 {days} 天<br>
+            <strong>生成时间：</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         </div>
         
-        <div class="content">
-            <!-- 温度统计 -->
-            <div class="section">
-                <h2 class="section-title">📊 温度统计概览</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">平均温度</div>
-                        <div class="stat-value">{temp_stats['avg']:.1f}°C</div>
-                        <div class="stat-label">监测 {temp_stats['count']} 个数据点</div>
-                    </div>
-                    <div class="stat-card optimal">
-                        <div class="stat-label">最高温度</div>
-                        <div class="stat-value">{temp_stats['max']:.1f}°C</div>
-                        <div class="stat-label">{temp_stats['max_time'].strftime('%m-%d %H:%M')}</div>
-                    </div>
-                    <div class="stat-card cold">
-                        <div class="stat-label">最低温度</div>
-                        <div class="stat-value">{temp_stats['min']:.1f}°C</div>
-                        <div class="stat-label">{temp_stats['min_time'].strftime('%m-%d %H:%M')}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">适宜温度范围</div>
-                        <div class="stat-value">{JABOTICABA_OPTIMAL['temp_min']}-{JABOTICABA_OPTIMAL['temp_max']}°C</div>
-                        <div class="stat-label">嘉宝果最适生长</div>
-                    </div>
-                </div>
+        <h2>📊 温度统计</h2>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">{temp_data['stats']['avg']:.1f}°C</div>
+                <div class="stat-label">平均温度</div>
             </div>
-            
-            <!-- 舒适度分析 -->
-            <div class="section">
-                <h2 class="section-title">🎯 温度适宜度分析</h2>
-                <div class="comfort-grid">
-                    <div class="comfort-card optimal">
-                        <div>✅ 适宜</div>
-                        <div class="comfort-percent" style="color: {COLORS['success']}">{comfort['optimal_percent']:.1f}%</div>
-                        <div>{comfort['optimal_count']} 个数据点</div>
-                    </div>
-                    <div class="comfort-card hot">
-                        <div>🔥 偏热</div>
-                        <div class="comfort-percent" style="color: {COLORS['danger']}">{comfort['too_hot_percent']:.1f}%</div>
-                        <div>{comfort['too_hot_count']} 个数据点</div>
-                    </div>
-                    <div class="comfort-card cold">
-                        <div>❄️ 偏冷</div>
-                        <div class="comfort-percent" style="color: #3498db">{comfort['too_cold_percent']:.1f}%</div>
-                        <div>{comfort['too_cold_count']} 个数据点</div>
-                    </div>
-                </div>
+            <div class="stat-card">
+                <div class="stat-value">{temp_data['stats']['max']:.1f}°C</div>
+                <div class="stat-label">最高温度</div>
             </div>
-            
-            <!-- 每日数据表格 -->
-            <div class="section">
-                <h2 class="section-title">📅 每日温度数据</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>日期</th>
-                            <th>最低温</th>
-                            <th>平均温</th>
-                            <th>最高温</th>
-                            <th>数据点</th>
-                            <th>状态</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {daily_table_rows}
-                    </tbody>
-                </table>
+            <div class="stat-card">
+                <div class="stat-value">{temp_data['stats']['min']:.1f}°C</div>
+                <div class="stat-label">最低温度</div>
             </div>
-            
-            <!-- 洞察分析 -->
-            <div class="section">
-                <h2 class="section-title">💡 数据洞察与生长影响</h2>
-                <div class="insights">
-                    {insights}
-                </div>
-            </div>
-            
-            <!-- 建议 -->
-            <div class="section">
-                <h2 class="section-title">📋 管理建议</h2>
-                <div class="recommendations">
-                    <ul>
-                        <li><strong>遮阳措施：</strong>当日最高温超过 35°C 时，建议开启遮阳网，避免叶片灼伤</li>
-                        <li><strong>灌溉调整：</strong>高温时段（12:00-15:00）增加喷雾降温，保持土壤湿润</li>
-                        <li><strong>夜间保温：</strong>当夜间温度低于 18°C 时，考虑覆盖保温膜</li>
-                        <li><strong>通风管理：</strong>温度超过 32°C 时加强通风，促进空气流通</li>
-                        <li><strong>监测频率：</strong>建议保持当前 13 分钟/次的监测频率，及时发现异常</li>
-                    </ul>
-                </div>
+            <div class="stat-card">
+                <div class="stat-value">{temp_data['stats']['count']}</div>
+                <div class="stat-label">数据点数</div>
             </div>
         </div>
         
-        <div class="footer">
-            生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 数据来源：捷佳润 IoT 平台 | 分析模型：嘉宝果生长适宜度 v1.0
+        <div class="optimal">
+            <strong>🌡️ 适宜温度范围：</strong> {optimal['temp_min']}°C ~ {optimal['temp_max']}°C<br>
+            <strong>📈 适宜比例：</strong> 
+            <span class="{temp_data['optimal_ratio_class']}">{temp_data['optimal_ratio']:.1f}%</span>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="tempChart"></canvas>
+        </div>
+        
+        <h2>💧 湿度统计</h2>
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">{humid_data['stats']['avg']:.1f}%</div>
+                <div class="stat-label">平均湿度</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{humid_data['stats']['max']:.1f}%</div>
+                <div class="stat-label">最高湿度</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{humid_data['stats']['min']:.1f}%</div>
+                <div class="stat-label">最低湿度</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{humid_data['stats']['count']}</div>
+                <div class="stat-label">数据点数</div>
+            </div>
+        </div>
+        
+        <div class="optimal">
+            <strong>💧 适宜湿度范围：</strong> {optimal['humid_min']}% ~ {optimal['humid_max']}%<br>
+            <strong>📈 适宜比例：</strong> 
+            <span class="{humid_data['optimal_ratio_class']}">{humid_data['optimal_ratio']:.1f}%</span>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="humidChart"></canvas>
+        </div>
+        
+        <h2>💡 生长建议</h2>
+        <div class="info">
+            {generate_recommendations(temp_data, humid_data, optimal)}
         </div>
     </div>
+    
+    <script>
+        // 温度图表
+        new Chart(document.getElementById('tempChart'), {{
+            type: 'line',
+            data: {{
+                labels: {json.dumps(temp_data['daily_labels'])},
+                datasets: [{{
+                    label: '温度 (°C)',
+                    data: {json.dumps(temp_data['daily_avg'])},
+                    borderColor: '{COLORS['primary']}',
+                    backgroundColor: '{COLORS['primary']}20',
+                    tension: 0.4,
+                    fill: true
+                }}, {{
+                    label: '适宜范围',
+                    data: [{optimal['temp_min']}] * {len(temp_data['daily_avg'])},
+                    borderColor: '{COLORS['success']}',
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0
+                }}, {{
+                    label: '适宜范围',
+                    data: [{optimal['temp_max']}] * {len(temp_data['daily_avg'])},
+                    borderColor: '{COLORS['success']}',
+                    borderDash: [5, 5],
+                    fill: '+1',
+                    pointRadius: 0
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{
+                    title: {{ display: true, text: '温度变化趋势' }}
+                }}
+            }}
+        }});
+        
+        // 湿度图表
+        new Chart(document.getElementById('humidChart'), {{
+            type: 'line',
+            data: {{
+                labels: {json.dumps(humid_data['daily_labels'])},
+                datasets: [{{
+                    label: '湿度 (%)',
+                    data: {json.dumps(humid_data['daily_avg'])},
+                    borderColor: '{COLORS['secondary']}',
+                    backgroundColor: '{COLORS['secondary']}20',
+                    tension: 0.4,
+                    fill: true
+                }}, {{
+                    label: '适宜范围',
+                    data: [{optimal['humid_min']}] * {len(humid_data['daily_avg'])},
+                    borderColor: '{COLORS['success']}',
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0
+                }}, {{
+                    label: '适宜范围',
+                    data: [{optimal['humid_max']}] * {len(humid_data['daily_avg'])},
+                    borderColor: '{COLORS['success']}',
+                    borderDash: [5, 5],
+                    fill: '+1',
+                    pointRadius: 0
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{
+                    title: {{ display: true, text: '湿度变化趋势' }}
+                }}
+            }}
+        }});
+    </script>
 </body>
 </html>
 """
-    
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(html_content)
-    
-    return html_content
+    return html
 
-def generate_insights(temp_data, temp_stats, comfort):
-    """生成洞察分析"""
-    insights = []
+def generate_recommendations(temp_data, humid_data, optimal):
+    """生成建议"""
+    recommendations = []
     
-    # 温度适宜度洞察
-    if comfort['optimal_percent'] >= 70:
-        insights.append(f"""
-        <h4>✅ 整体环境优良</h4>
-        <p>监测期间 {comfort['optimal_percent']:.1f}% 的时间温度处于嘉宝果适宜生长范围（{JABOTICABA_OPTIMAL['temp_min']}-{JABOTICABA_OPTIMAL['temp_max']}°C），
-        有利于植株健康生长和果实发育。</p>
-        """)
-    elif comfort['optimal_percent'] >= 50:
-        insights.append(f"""
-        <h4>⚠️ 环境基本适宜</h4>
-        <p>监测期间 {comfort['optimal_percent']:.1f}% 的时间温度适宜，但仍有优化空间。建议关注高温/低温时段的环境调控。</p>
-        """)
+    # 温度建议
+    temp_avg = temp_data['stats']['avg']
+    if temp_avg < optimal['temp_min']:
+        recommendations.append(f"⚠️ <strong>温度偏低</strong>：平均温度 {temp_avg:.1f}°C 低于适宜范围，建议采取保温措施。")
+    elif temp_avg > optimal['temp_max']:
+        recommendations.append(f"⚠️ <strong>温度偏高</strong>：平均温度 {temp_avg:.1f}°C 高于适宜范围，建议加强通风或遮阳。")
     else:
-        insights.append(f"""
-        <h4>🚨 环境需要改善</h4>
-        <p>监测期间仅 {comfort['optimal_percent']:.1f}% 的时间温度适宜，超过 {100-comfort['optimal_percent']:.1f}% 的时间处于不适宜状态，
-        可能影响嘉宝果的正常生长和果实品质。</p>
-        """)
+        recommendations.append(f"✅ <strong>温度适宜</strong>：平均温度 {temp_avg:.1f}°C 在适宜范围内。")
     
-    # 高温洞察
-    if comfort['too_hot_percent'] > 20:
-        insights.append(f"""
-        <h4>🔥 高温胁迫风险</h4>
-        <p>监测期间 {comfort['too_hot_percent']:.1f}% 的时间温度超过 {JABOTICABA_OPTIMAL['temp_max']}°C，
-        最高达 {temp_stats['max']:.1f}°C。持续高温可能导致：<br>
-        • 叶片蒸腾作用过强，水分流失加速<br>
-        • 光合作用效率下降<br>
-        • 果实日灼风险增加<br>
-        建议加强遮阳和喷雾降温措施。</p>
-        """)
+    # 湿度建议
+    humid_avg = humid_data['stats']['avg']
+    if humid_avg < optimal['humid_min']:
+        recommendations.append(f"⚠️ <strong>湿度偏低</strong>：平均湿度 {humid_avg:.1f}% 低于适宜范围，建议增加灌溉。")
+    elif humid_avg > optimal['humid_max']:
+        recommendations.append(f"⚠️ <strong>湿度偏高</strong>：平均湿度 {humid_avg:.1f}% 高于适宜范围，注意预防病害。")
+    else:
+        recommendations.append(f"✅ <strong>湿度适宜</strong>：平均湿度 {humid_avg:.1f}% 在适宜范围内。")
     
-    # 温差洞察
-    daily = daily_stats(temp_data)
-    temp_ranges = [stats['max'] - stats['min'] for stats in daily.values()]
-    avg_range = sum(temp_ranges) / len(temp_ranges) if temp_ranges else 0
-    
-    if avg_range > 12:
-        insights.append(f"""
-        <h4>📈 昼夜温差较大</h4>
-        <p>平均昼夜温差 {avg_range:.1f}°C，较大温差有利于果实糖分积累，提升果实甜度。
-        但需注意夜间低温可能导致的冷胁迫。</p>
-        """)
-    
-    # 温度趋势洞察
-    if daily:
-        dates = list(daily.keys())
-        first_week_avg = sum(daily[d]['avg'] for d in dates[:7]) / min(7, len(dates))
-        second_week_avg = sum(daily[d]['avg'] for d in dates[7:14]) / min(7, len(dates[7:14])) if len(dates) > 7 else first_week_avg
-        
-        if second_week_avg > first_week_avg + 2:
-            insights.append(f"""
-            <h4>📈 温度呈上升趋势</h4>
-            <p>第二周平均温度（{second_week_avg:.1f}°C）较第一周（{first_week_avg:.1f}°C）上升 {second_week_avg-first_week_avg:.1f}°C，
-            符合春季气温回升规律。需提前做好高温应对准备。</p>
-            """)
-    
-    return ''.join(insights)
+    return "<ul>" + "".join(f"<li style='margin: 10px 0;'>{r}</li>" for r in recommendations) + "</ul>"
 
 def main():
-    # 获取配置
-    config = get_config()
-    product_key = config.get('product_key', 'YOUR_PRODUCT_KEY')
-    device_name = config.get('device_name', 'YOUR_DEVICE_NAME')
-
-    # 计算日期范围 (最近 14 天)
-    now = datetime.now()
-    start_date = (now - timedelta(days=14)).strftime('%Y-%m-%d 00:00:00')
-    end_date = now.strftime('%Y-%m-%d 23:59:59')
-
-    # 获取数据
-    print("🔍 获取 Token...")
-    token = get_token()
-    print(f"✅ Token 获取成功")
+    """主函数"""
+    parser = argparse.ArgumentParser(description='捷佳润 IoT 平台 - 生长环境数据分析')
+    parser.add_argument('--config', type=str, help='配置文件路径')
+    parser.add_argument('--productKey', type=str, help='产品 Key')
+    parser.add_argument('--deviceName', type=str, help='设备名称')
+    parser.add_argument('--days', type=int, default=7, help='分析天数（默认 7 天）')
+    parser.add_argument('--output', type=str, default='growth_report.html', help='输出文件路径')
     
-    print(f"📊 获取设备 {device_name} 的温度数据...")
-    temp_raw = fetch_property_data('envTemp', start_date, end_date, token, product_key, device_name)
+    args = parser.parse_args()
+    
+    # 加载配置
+    config = load_config(args.config)
+    if not config:
+        print("❌ 错误：未找到配置文件，请先运行 setup_credentials.sh 配置")
+        sys.exit(1)
+    
+    # 获取设备信息（参数优先，其次配置文件）
+    product_key = args.productKey or config.get('product_key')
+    device_name = args.deviceName or config.get('device_name')
+    
+    if not product_key or not device_name:
+        print("❌ 错误：请提供产品 Key 和设备名称")
+        print("用法:")
+        print("  python3 analyze_growth.py --productKey YOUR_KEY --deviceName YOUR_NAME")
+        print("  或在 config.json 中配置 product_key 和 device_name")
+        sys.exit(1)
+    
+    # 获取植物类型配置（可选）
+    plant_type = config.get('plant_type', 'default')
+    optimal = config.get('optimal_conditions', DEFAULT_OPTIMAL)
+    
+    print(f"🌱 开始分析生长环境数据...")
+    print(f"   设备：{product_key}:{device_name}")
+    print(f"   时段：近 {args.days} 天")
+    print(f"   植物类型：{plant_type}")
+    
+    # 计算时间范围
+    end_time = datetime.now()
+    start_time = end_time - timedelta(days=args.days)
+    
+    # 获取 Token
+    token = get_token(config)
+    if not token:
+        print("❌ 错误：无法获取 Token，请检查配置")
+        sys.exit(1)
+    
+    # 获取温度数据
+    print("📊 获取温度数据...")
+    temp_raw = fetch_property_data('envTemp', start_time.strftime('%Y-%m-%d %H:%M:%S'), 
+                                    end_time.strftime('%Y-%m-%d %H:%M:%S'), token, 
+                                    product_key, device_name)
     temp_data = parse_data(temp_raw)
-    print(f"✅ 获取 {len(temp_data)} 条温度数据")
+    print(f"   获取到 {len(temp_data)} 个数据点")
     
+    # 获取湿度数据
     print("💧 获取湿度数据...")
-    try:
-        humid_raw = fetch_property_data('envHum', start_date, end_date, token, product_key, device_name)
-        humid_data = parse_data(humid_raw)
-        print(f"✅ 获取 {len(humid_data)} 条湿度数据")
-    except Exception as e:
-        print(f"⚠️ 湿度数据获取失败：{e}")
-        humid_data = []
+    humid_raw = fetch_property_data('envHum', start_time.strftime('%Y-%m-%d %H:%M:%S'), 
+                                     end_time.strftime('%Y-%m-%d %H:%M:%S'), token, 
+                                     product_key, device_name)
+    humid_data = parse_data(humid_raw)
+    print(f"   获取到 {len(humid_data)} 个数据点")
     
-    # 生成报告
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(os.path.dirname(script_dir), 'reports')
-    output_path = os.path.join(output_dir, 'growth_report.html')
-    os.makedirs(output_dir, exist_ok=True)
+    if not temp_data and not humid_data:
+        print("⚠️  警告：未获取到任何数据，请检查设备是否在线")
+        sys.exit(1)
     
-    print("📝 生成可视化报告...")
-    generate_html_report(temp_data, humid_data, output_path)
+    # 计算统计数据
+    temp_stats = calculate_stats(temp_data)
+    humid_stats = calculate_stats(humid_data)
+    
+    # 计算适宜比例
+    temp_optimal_count = sum(1 for d in temp_data if optimal['temp_min'] <= d['value'] <= optimal['temp_max'])
+    humid_optimal_count = sum(1 for d in humid_data if optimal['humid_min'] <= d['value'] <= optimal['humid_max'])
+    
+    temp_optimal_ratio = (temp_optimal_count / len(temp_data) * 100) if temp_data else 0
+    humid_optimal_ratio = (humid_optimal_count / len(humid_data) * 100) if humid_data else 0
+    
+    # 准备图表数据
+    temp_daily = daily_stats(temp_data)
+    humid_daily = daily_stats(humid_data)
+    
+    # 生成报告数据结构
+    temp_report = {
+        'stats': temp_stats,
+        'daily_labels': list(temp_daily.keys()),
+        'daily_avg': [temp_daily[d]['avg'] for d in temp_daily.keys()],
+        'optimal_ratio': temp_optimal_ratio,
+        'optimal_ratio_class': 'success' if temp_optimal_ratio > 80 else 'warning' if temp_optimal_ratio > 50 else 'danger'
+    }
+    
+    humid_report = {
+        'stats': humid_stats,
+        'daily_labels': list(humid_daily.keys()),
+        'daily_avg': [humid_daily[d]['avg'] for d in humid_daily.keys()],
+        'optimal_ratio': humid_optimal_ratio,
+        'optimal_ratio_class': 'success' if humid_optimal_ratio > 80 else 'warning' if humid_optimal_ratio > 50 else 'danger'
+    }
+    
+    device_info = {
+        'productKey': product_key,
+        'deviceName': device_name
+    }
+    
+    # 生成 HTML 报告
+    print("📝 生成分析报告...")
+    html = generate_html_report(temp_report, humid_report, optimal, device_info, args.days)
+    
+    # 保存报告
+    output_path = args.output
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    
     print(f"✅ 报告已生成：{output_path}")
-    
-    # 打印统计摘要
-    print("\n" + "="*60)
-    print("📊 数据摘要")
-    print("="*60)
-    if temp_data:
-        values = [d['value'] for d in temp_data]
-        print(f"温度范围：{min(values):.1f}°C ~ {max(values):.1f}°C")
-        print(f"平均温度：{sum(values)/len(values):.1f}°C")
-        print(f"数据点数：{len(values)}")
+    print(f"📊 温度：平均 {temp_stats.get('avg', 0):.1f}°C, 适宜率 {temp_optimal_ratio:.1f}%")
+    print(f"💧 湿度：平均 {humid_stats.get('avg', 0):.1f}%, 适宜率 {humid_optimal_ratio:.1f}%")
 
 if __name__ == '__main__':
     main()

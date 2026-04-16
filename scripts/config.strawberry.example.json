@@ -1,0 +1,11 @@
+{
+  "title": "🍓 草莓大棚环境监测报告",
+  "deviceName": "STRAWBERRY-C03",
+  "cropType": "草莓（开花期）",
+  "standards": {
+    "temp": {"min": 15, "max": 23, "unit": "°C"},
+    "humidity": {"min": 50, "max": 70, "unit": "%"},
+    "co2": {"min": 400, "max": 800, "unit": "ppm"},
+    "light": {"min": 10000, "max": 30000, "unit": "lux"}
+  }
+}

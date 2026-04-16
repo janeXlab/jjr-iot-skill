@@ -1,0 +1,11 @@
+{
+  "title": "🌾 水稻田间环境监测报告",
+  "deviceName": "RICE-FIELD-D04",
+  "cropType": "水稻（抽穗期）",
+  "standards": {
+    "temp": {"min": 25, "max": 35, "unit": "°C"},
+    "humidity": {"min": 60, "max": 85, "unit": "%"},
+    "co2": {"min": 400, "max": 600, "unit": "ppm"},
+    "light": {"min": 20000, "max": 60000, "unit": "lux"}
+  }
+}

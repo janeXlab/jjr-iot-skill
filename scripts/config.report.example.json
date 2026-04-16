@@ -1,0 +1,11 @@
+{
+  "title": "环境监测报告",
+  "deviceName": "设备标识",
+  "cropType": "作物类型",
+  "standards": {
+    "temp": {"min": 15, "max": 25, "unit": "°C"},
+    "humidity": {"min": 60, "max": 80, "unit": "%"},
+    "co2": {"min": 0, "max": 1000, "unit": "ppm"},
+    "light": {"min": 0, "max": 1000, "unit": "lux"}
+  }
+}

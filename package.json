@@ -1,6 +1,6 @@
 {
   "name": "jjr-iot-skill",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "捷佳润 IoT 平台技能 - 设备查询、属性数据、图片获取、定时任务",
   "displayName": "JJR IoT Skill",
   "author": "捷佳润创新中心 <service@jjr.com.cn>",
@@ -14,7 +14,8 @@
   "openclaw": {
     "minVersion": "2026.3.24",
     "requires": {
-      "bins": ["curl", "jq", "python3"]
+      "bins": ["curl", "jq", "python3"],
+      "windows": "Git Bash (https://git-scm.com) or WSL required to run .sh scripts"
     }
   }
 }

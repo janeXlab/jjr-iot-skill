@@ -127,7 +127,7 @@
 
 **示例：**
 ```markdown
-![鹿茸菇环境监测报告](file:///home/cloud/.openclaw/workspace/reports/mushroom_report.png)
+![环境监测报告](file:///home/cloud/.openclaw/workspace/reports/mushroom_report.png)
 ```
 
 **优点：**

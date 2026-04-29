@@ -70,8 +70,10 @@ def generate_report(data, config, output_path):
     
     try:
         with sync_playwright() as p:
+            # Chromium 路径可通过环境变量 CHROMIUM_PATH 配置
+            chromium_path = os.environ.get('CHROMIUM_PATH', '/snap/bin/chromium')
             browser = p.chromium.launch(
-                executable_path='/snap/bin/chromium',
+                executable_path=chromium_path,
                 headless=True,
                 args=['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
             )

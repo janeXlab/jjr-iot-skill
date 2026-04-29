@@ -3,11 +3,11 @@ name: jjr_iot
 description: 捷佳润 IoT 平台技能，支持设备查询、属性数据、图片获取和定时任务
 metadata:
   openclaw:
-    os: ["linux", "darwin"]
+    os: ["linux", "darwin", "windows"]
     requires:
       bins: ["curl", "jq", "python3"]
 tags: ["iot", "jjr", "agriculture", "sensors", "chinese"]
-version: 1.3.0
+version: 1.3.1
 ---
 # JJR IoT Skill - 捷佳润物联平台技能
 
@@ -35,8 +35,8 @@ version: 1.3.0
 
 | 配置项 | 说明 | 获取方式 |
 |--------|------|----------|
-| `client_id` | 物联平台 Client ID | 联系捷佳润销售获取（sales@jjr.vip） |
-| `client_secret` | 物联平台 Client Secret | 联系捷佳润销售获取（sales@jjr.vip） |
+| `client_id` | 物联平台 Client ID | 联系捷佳润销售获取（service@jjr.com.cn） |
+| `client_secret` | 物联平台 Client Secret | 联系捷佳润销售获取（service@jjr.com.cn） |
 | `api_base` | API 基础地址 | `https://gateway.jjr.vip`（默认） |
 
 ### 可选配置
@@ -50,11 +50,11 @@ version: 1.3.0
 
 ## 📦 安装方法
 
-### 方式一：通过捷小码使用（推荐）
+### 方式一：通过claw使用（推荐）
 
-**已配置 API 凭证的用户**，可以直接对话捷小码查询设备数据。
+**已配置 API 凭证的用户**，可以直接对话查询设备数据。
 
-直接对捷小码说：
+直接对claw说：
 ```
 查询设备列表
 查看温度数据
@@ -76,12 +76,8 @@ cd ~/.openclaw/workspace/skills/jjr-iot/
 
 **还没有 API 凭证？** 脚本会提供捷佳润销售团队的联系方式。
 
-### 方式三：通过 Clawhub 安装（若环境支持）
-
-```bash
-clawhub install jjr-iot
-```
-
+### 方式三：通过 github 安装（若环境支持）
+https://github.com/janeXlab/jjr-iot-skill
 ### 方式四：手动安装
 
 ```bash
@@ -851,20 +847,6 @@ python3 scripts/generate_report_generic.py \
 
 ---
 
-### 钉钉配置信息
-
-| 配置项 | 说明 |
-|--------|------|
-| Client ID / Client Secret | 在 [钉钉开放平台](https://open.dingtalk.com/) 创建应用后，于应用详情页获取 |
-| Token 有效期 | 7200 秒（2 小时） |
-
-**获取方式：**
-1. 登录钉钉开放平台：https://open.dingtalk.com/
-2. 创建"AI 助理"或"群机器人"
-3. 获取 `clientId` 和 `clientSecret`
-
----
-
 ## 🔒 安全说明
 
 1. **Token 管理**: Token 有效期 30 分钟，建议缓存复用
@@ -915,7 +897,7 @@ MIT License
 
 ---
 
-**版本:** 1.3.0  
+**版本:** 1.3.1  
 **创建日期:** 2026-04-13  
 **最后更新:** 2026-04-16  
 **更新内容:**  

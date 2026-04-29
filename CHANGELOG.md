@@ -1,5 +1,14 @@
 # JJR IoT Skill - 版本历史
 
+## v1.3.1 (2026-04-29)
+
+### 修复
+- ✅ 统一版本号（SKILL.md、package.json、CHANGELOG.md）
+- ✅ Chromium 路径改为可配置（环境变量 `CHROMIUM_PATH`）
+- ✅ 邮箱修改
+
+---
+
 ## v1.3.0 (2026-04-16)
 
 ### 文档与分发
@@ -87,4 +96,4 @@
 ---
 
 **发布渠道：** 腾讯云 SkillHub、Clawhub（若可用）  
-**打包文件:** jjr-iot-skill-v1.3.0.zip
+**打包文件:** jjr-iot-skill-v1.3.1.zip

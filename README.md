@@ -15,9 +15,7 @@
 
 ## 📦 安装
 
-### 方式一：语音安装（推荐）
-
-对捷小码说：
+### 方式一：对claw说：
 ```
 安装 jjr iot skill
 ```
@@ -25,6 +23,8 @@
 然后提供设备上的 `client_id` 和 `client_secret`。
 
 ### 方式二：手动安装
+
+**macOS / Linux**
 
 ```bash
 # 1. 复制技能到技能目录
@@ -37,6 +37,23 @@ cp config.example.json config.json
 # 3. 编辑配置文件
 vim config.json
 # 填入你的 client_id 和 client_secret
+```
+
+**Windows**
+
+脚本为 Bash 脚本，Windows 需通过以下任一方式运行：
+
+- **方式 A（推荐）- Git Bash**：安装 [Git for Windows](https://git-scm.com/download/win)，在 Git Bash 终端中执行所有 `./scripts/*.sh` 命令。同时需安装：
+  - `curl`：Git for Windows 内置，无需额外安装
+  - `jq`：下载 [jq for Windows](https://jqlang.github.io/jq/download/) 并将 `jq.exe` 放入 `PATH`
+  - `python3`：从 [python.org](https://www.python.org/downloads/) 安装
+
+- **方式 B - WSL**：启用 Windows Subsystem for Linux，在 WSL 终端中按 Linux 流程操作。
+
+```bat
+REM Windows 安装依赖示例（在 Git Bash 终端执行）
+winget install jqlang.jq
+winget install Python.Python.3
 ```
 
 ---

@@ -1,0 +1,23 @@
+# 配置文件（包含敏感信息）
+config.json
+
+# Token 缓存
+*.token.json
+/tmp/jjr_iot_token.json
+
+# 系统文件
+.DS_Store
+
+# 临时文件
+*.tmp
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# 报告输出（可选保留）
+# reports/
+# *.html
+# *.png
